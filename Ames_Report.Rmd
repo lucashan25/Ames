@@ -1,6 +1,6 @@
 ---
 title: 'Ames Property Valuation: Predictive Modelling via Linear Regression'
-author: "Thanh Dat Nguyen - ID: u3248406"
+author: "Thanh Dat Nguyen "
 output:
   pdf_document:
     toc: true
@@ -137,4 +137,3 @@ ggplot(test, aes(x = Prediction, y = Error)) +
 - De Cock, D. (2011). Ames Housing Dataset. https://www.kaggle.com/c/house-prices-advanced-regression-techniques
 - Wickham, H. et al. (2023). ggplot2. R package.
 - Metrics package. (2023). RMSE and MAE calculations.
-- University of Canberra (2025). Case Study Guidelines and Lectures.
