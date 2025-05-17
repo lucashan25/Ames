@@ -1,0 +1,140 @@
+---
+title: 'Ames Property Valuation: Predictive Modelling via Linear Regression'
+author: "Thanh Dat Nguyen - ID: u3248406"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: '2'
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(Metrics)
+```
+
+# 1. Overview and Motivation
+
+This report explores property price patterns in Ames, Iowa, by applying statistical learning techniques to a well-documented housing dataset. The analysis focuses on understanding major influences on sale prices and developing a predictive linear model. A set of five questions guided the investigation, including the influence of physical features, location, and market timing. 
+
+The final model demonstrated a strong fit, explaining over 90% of the variance in sale prices. Key drivers included house quality, interior area, garage capacity, and neighborhood. Recommendations for model improvement and application are also provided.
+
+# 2. Problem Formulation
+
+The following questions shaped the analytical approach:
+
+1. Which house features most significantly impact sale prices?
+2. What is the price trend across neighborhoods?
+3. How does internal living space (`GrLivArea`) relate to price?
+4. Does age or renovation history affect market value?
+5. Have sale prices shifted notably in recent years?
+
+Each of these problems connects to a practical aspect of property evaluation, from buyer preferences to market dynamics.
+
+# 3. Data Preparation
+
+```{r load-data}
+if (!file.exists("Ames.csv")) {
+  stop("Ames.csv is missing. Please ensure the dataset is placed in the same folder as this Rmd.")
+}
+
+Ames <- read.csv("Ames.csv")
+set.seed(123)
+train <- Ames %>% sample_frac(0.7)
+test <- setdiff(Ames, train)
+
+train$LotFrontage[is.na(train$LotFrontage)] <- median(train$LotFrontage, na.rm = TRUE)
+train <- train %>% filter(GrLivArea < 4000)  # Trim outliers
+train$LogPrice <- log(train$SalePrice)
+```
+
+# 4. Initial Exploration
+
+```{r}
+# Quick correlation check
+cor(train %>% select(SalePrice, OverallQual, GrLivArea, GarageCars), use = "complete.obs")
+
+# Visualise size vs price
+ggplot(train, aes(x = GrLivArea, y = SalePrice)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Living Area vs Price")
+
+# Histogram of log-transformed price
+ggplot(train, aes(x = LogPrice)) +
+  geom_histogram(bins = 30, fill = "skyblue") +
+  labs(title = "Log(SalePrice) Distribution")
+
+# Boxplot for neighborhood comparison
+ggplot(train, aes(x = Neighborhood, y = SalePrice)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Sale Price by Neighborhood")
+```
+
+# 5. Feature Selection and Engineering
+
+```{r}
+# Generate bathroom composite
+train$BathComposite <- train$FullBath + 0.5 * train$HalfBath
+
+# Final variables used
+train <- train %>% select(SalePrice, LogPrice, OverallQual, GrLivArea, GarageCars, BathComposite, Neighborhood)
+```
+
+# 6. Model Development
+
+```{r}
+# Base model
+mod_basic <- lm(LogPrice ~ OverallQual + GrLivArea + GarageCars + Neighborhood, data = train)
+
+# Extended model
+mod_extended <- lm(LogPrice ~ OverallQual + GrLivArea + GarageCars + BathComposite + Neighborhood, data = train)
+
+# Summary of best model
+summary(mod_extended)
+```
+
+# 7. Model Assessment
+
+```{r}
+test$BathComposite <- test$FullBath + 0.5 * test$HalfBath
+test$LogPred <- predict(mod_extended, newdata = test)
+test$Prediction <- exp(test$LogPred)
+
+# Calculate metrics
+rmse_score <- rmse(test$SalePrice, test$Prediction)
+mae_score <- mae(test$SalePrice, test$Prediction)
+r2_score <- 1 - sum((test$SalePrice - test$Prediction)^2) / sum((test$SalePrice - mean(test$SalePrice))^2)
+
+list(RMSE = rmse_score, MAE = mae_score, R2 = r2_score)
+```
+
+```{r}
+# Residual check
+test$Error <- test$SalePrice - test$Prediction
+ggplot(test, aes(x = Prediction, y = Error)) +
+  geom_point(alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuals vs Predicted", x = "Predicted Sale Price", y = "Residuals")
+```
+
+# 8. Findings and Takeaways
+
+- Homes with high `OverallQual`, spacious interiors, and larger garages consistently commanded higher prices.
+- Neighborhood had a clear influence on pricing—locations like "NoRidge" and "NridgHt" topped the charts.
+- The enhanced linear model produced strong metrics: RMSE ~ \$23,000, R² ~ 0.91.
+- Future improvements may include using Lasso regression or decision trees to capture non-linear effects and reduce overfitting.
+
+# 9. References
+
+- De Cock, D. (2011). Ames Housing Dataset. https://www.kaggle.com/c/house-prices-advanced-regression-techniques
+- Wickham, H. et al. (2023). ggplot2. R package.
+- Metrics package. (2023). RMSE and MAE calculations.
+- University of Canberra (2025). Case Study Guidelines and Lectures.
